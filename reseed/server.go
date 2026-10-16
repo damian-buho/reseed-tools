@@ -174,6 +174,8 @@ func NewServer(prefix string, trustProxy bool, samaddr string, requestRateLimit,
 	mux := http.NewServeMux()
 	mux.Handle("/", middlewareChain.Append(disableKeepAliveMiddleware, loggingMiddleware, throttledGlobalHandler.RateLimit, throttleWebHandler.RateLimit, server.browsingMiddleware).Then(errorHandler))
 	mux.Handle(prefix+"/i2pseeds.su3", middlewareChain.Append(disableKeepAliveMiddleware, loggingMiddleware, verifyMiddleware, throttledGlobalHandler.RateLimit, throttleSu3Handler.RateLimit).Then(http.HandlerFunc(server.reseedHandler)))
+	// Liveness only, bypasses every rate limiter so monitors never drain a client bucket.
+	mux.Handle(prefix+"/health", middlewareChain.Append(disableKeepAliveMiddleware, loggingMiddleware).Then(http.HandlerFunc(healthHandler)))
 	server.Handler = mux
 
 	return &server
@@ -339,6 +341,15 @@ func (srv *Server) CheckAcceptable(val string) bool {
 		return true
 	}
 	return false
+}
+
+// healthHandler answers liveness without touching netDb, SU3 cache, or any limiter.
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write([]byte("ok")); nil != err {
+		lgr.WithError(err).Error("Error writing health response")
+	}
 }
 
 func (srv *Server) reseedHandler(w http.ResponseWriter, r *http.Request) {
