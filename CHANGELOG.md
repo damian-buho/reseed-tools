@@ -1,3 +1,9 @@
+2026-10-16
+ * app.Version = 0.3.14
+ * Add unthrottled prefix-aware /health liveness endpoint (200 text/plain ok,
+   bypasses the web/SU3/global rate limiters) so monitors stop draining the
+   per-IP buckets their own probes are judged against.
+
 2026-05-08
  * app.Version = 0.3.13
  * Fix CPU exhaustion bug arising from incorrect mutex handling. Reported by likogan.dev/`sexy` on #saltr.
